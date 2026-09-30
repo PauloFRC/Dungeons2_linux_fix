@@ -3,9 +3,6 @@
 set -eu
 ROOT=$(CDPATH= cd -- "$(dirname "$0")" && pwd -P)
 TEMP="$ROOT/.temp"
-
-STEAM_ROOT=${STEAM_ROOT:-$HOME/.local/share/Steam}
-VDF="$STEAM_ROOT/steamapps/libraryfolders.vdf"
 DLL="$ROOT/src/xgameruntime.dll"
 GDK_NUPKG_FILE="$TEMP/gdk.nupkg"
 APPID=1912410
@@ -13,20 +10,6 @@ APPID=1912410
 PY=${PYTHON:-/usr/bin/python3}
 VENV="$ROOT/.venv"
 XAUTH="$ROOT/xauth.py"
-
-LIB=$(awk '
-    /"path"/ {
-        gsub(/"/, "", $2)
-        path = $2
-        manifest = path "/steamapps/appmanifest_'"$APPID"'.acf"
-        if (system("test -f \"" manifest "\"") == 0) { print path; exit }
-    }
-' "$VDF")
-
-GAME="$LIB/steamapps/common/Minecraft Dungeons II"
-PFX="$LIB/steamapps/compatdata/$APPID/pfx/drive_c/windows/system32"
-SHIP="$GAME/Dungeons/Binaries/Win64"
-
 
 if [ ! -f "$DLL" ]; then
     echo "Missing $DLL. Build it first; see README.md." >&2
@@ -37,6 +20,48 @@ if [ ! -d "$TEMP" ]; then
     echo "Making .temp directory."
     mkdir "$TEMP"
 fi
+
+if [ -z "${STEAM_ROOT:-}" ] || [ ! -f "$STEAM_ROOT/steamapps/libraryfolders.vdf" ]; then
+    for candidate in \
+        "${STEAM_ROOT:-}" \
+        "$HOME/.local/share/Steam" \
+        "$HOME/.steam/steam" \
+        "$HOME/.steam/root" \
+        "$HOME/.var/app/com.valvesoftware.Steam/data/Steam" \
+        "$HOME/.var/app/com.valvesoftware.Steam/.local/share/Steam" \
+        "$HOME/snap/steam/common/.local/share/Steam"
+    do
+        if [ -n "$candidate" ] && [ -f "$candidate/steamapps/libraryfolders.vdf" ]; then
+            STEAM_ROOT="$candidate"
+            break
+        fi
+    done
+fi
+
+STEAM_ROOT=${STEAM_ROOT:-$HOME/.local/share/Steam}
+VDF="$STEAM_ROOT/steamapps/libraryfolders.vdf"
+if [ ! -f "$VDF" ]; then
+    echo "Could not find libraryfolders.vdf. Set STEAM_ROOT." >&2
+    exit 1
+fi
+
+LIB=$(awk '
+    /"path"/ {
+        gsub(/"/, "", $2)
+        path = $2
+        manifest = path "/steamapps/appmanifest_'"$APPID"'.acf"
+        if (system("test -f \"" manifest "\"") == 0) { print path; exit }
+    }
+' "$VDF")
+
+if [ -z "$LIB" ]; then
+    echo "Steam app $APPID is not in any library folder." >&2
+    exit 1
+fi
+
+GAME="$LIB/steamapps/common/Minecraft Dungeons II"
+PFX="$LIB/steamapps/compatdata/$APPID/pfx/drive_c/windows/system32"
+SHIP="$GAME/Dungeons/Binaries/Win64"
 
 # xauth.py runs under a self-contained virtual environment. Dependencies are
 # declared in pyproject.toml (cryptography, for the device-token step) so the
@@ -65,19 +90,6 @@ re-run install.sh:
   Fedora         sudo dnf install python3
   Arch           sudo pacman -S python
 EOF
-    exit 1
-fi
-
-if [ ! -f "$STEAM_ROOT/steamapps/libraryfolders.vdf" ] && [ -f "$HOME/.steam/steam/steamapps/libraryfolders.vdf" ]; then
-    STEAM_ROOT=$HOME/.steam/steam
-fi
-if [ ! -f "$VDF" ]; then
-    echo "Could not find libraryfolders.vdf. Set STEAM_ROOT." >&2
-    exit 1
-fi
-
-if [ -z "$LIB" ]; then
-    echo "Steam app $APPID is not in any library folder." >&2
     exit 1
 fi
 
