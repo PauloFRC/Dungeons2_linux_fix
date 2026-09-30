@@ -50,3 +50,6 @@ The bundled `src/xgameruntime.dll` is built against the exact `XCurl.dll` that `
 x86_64-w64-mingw32-gcc-posix -shared -O2 -Wall -Wextra -o src/xgameruntime.dll src/xgameruntime.c
 ./install.sh
 ```
+
+Proton 11.7: https://github.com/LukasPAH/GDK-Proton-Custom/releases/tag/release-11-7
+Custom DDL: https://www.dll-files.com/xcurl.dll.html. Rename to XCurl.dll
