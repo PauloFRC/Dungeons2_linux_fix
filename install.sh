@@ -72,8 +72,9 @@ if ! command -v "$PY" >/dev/null 2>&1; then
     exit 1
 fi
 
-if [ ! -x "$VENV/bin/python3" ]; then
+if [ ! -x "$VENV/bin/python3" ] || ! "$VENV/bin/python3" -m pip --version >/dev/null 2>&1; then
     echo "Creating a Python virtual environment in $VENV"
+    rm -rf "$VENV"
     "$PY" -m venv "$VENV" >/dev/null 2>&1 || true
 fi
 if [ -x "$VENV/bin/python3" ] && ! "$VENV/bin/python3" -c "import cryptography" >/dev/null 2>&1; then
